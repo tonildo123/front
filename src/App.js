@@ -1,32 +1,27 @@
-import {
-  Box, Button, Card, CardActions, CardContent, Container, Dialog, DialogActions,
-  DialogContent, DialogTitle, Grid, Slide, TextField, Typography
-} from "@mui/material";
-import axios from 'axios';
-import { useState, useEffect, forwardRef } from "react";
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import InfoIcon from '@mui/icons-material/Info';
+import { Box, Button,  Container, Grid, TextField, Typography} from "@mui/material";
+import { useState, useEffect,  } from "react";
 import Swal from "sweetalert2";
-
-const Transition = forwardRef(function Transition(props, ref) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
+import CardComponent from "./components/CardComponent";
+import DialogComponent from "./components/DialogComponent";
+import { useSelector } from 'react-redux';
+import useClientes from "./hooks/useClientes";
 
 function App() {
+  const { addClient, findAllClients, removeClient } = useClientes();
+  const clients = useSelector((state) => state.clients.clients);
   const [data, setData] = useState([]);
   const [newClient, setNewClient] = useState({
     name: "",
     lastname: "",
     brithdate: "",
     cuit: "",
-    domicilio: "",
+    address: "",
     phone: "",
     email: "",
   });
   const [open, setOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedupdate, setSelectedUpdate] = useState(false);
+  const [selectedupdate, setSelectedUpdate] = useState(false); 
 
 
   const handleClickOpen = (item) => {
@@ -39,20 +34,15 @@ function App() {
     setOpen(false);
   };
 
-
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const response = await axios.get('http://localhost:8080/api/clientes/getall');
-        console.log('response ', JSON.stringify(response.data, null, 5))
-        setData(response.data);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
+      const data = await findAllClients();
+      setData(data);
     };
 
     fetchData();
-  }, []);
+  }, [findAllClients]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -65,57 +55,33 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      await axios.post('http://localhost:8080/api/clientes/inserter', newClient);
-      const response = await axios.get('http://localhost:8080/api/clientes/getall');
-      setData(response.data);
+    addClient(newClient);
 
       setNewClient({
         name: "",
         lastname: "",
         brithdate: "",
         cuit: "",
-        domicilio: "",
+        address: "",
         phone: "",
         email: "",
       });
-    } catch (error) {
-      console.error('Error adding new client:', error);
-    }
+    
   };
 
   const handleDelete = async (item) => {
 
-    // en este caso no funciona ya que no recupero el id desde el back, pero podria agfregarlo desde el DTO
-    // try {
-
-    //   await axios.delete(`http://localhost:8080/api/clientes/delete/${item.id}`);
-    //   const response = await axios.get('http://localhost:8080/api/clientes/getall');
-    //   setData(response.data);
-
-    // } catch (error) {
-    //   console.error('Error adding new client:', error);
-    // }
-
-
-    const newArray = data.filter(data => data.name !== item.name)
-    setData(newArray);
-
-    Swal.fire({
-      text: `Cliente borrado`,
-      icon: 'success',
-      confirmButtonText: 'Ok',
-    });
+    removeClient(item.name);
   };
 
   const handleEdit = async (item) => {
     // ocurre los mismo que en delete
     
     // try {
-    //   await axios.delete(`http://localhost:8080/api/clientes/update/${item.id}`, {
+    //   await axios.delete(`http://localhost:8080/api/clients/update/${item.id}`, {
     //   newClient
     // });
-    //   const response = await axios.get('http://localhost:8080/api/clientes/getall');
+    //   const response = await axios.get('http://localhost:8080/api/clients/getall');
     //   setData(response.data);
     // Swal.fire({
     //   text: `Cliente actualizado`,
@@ -132,7 +98,7 @@ function App() {
       lastname: item.lastname,
       brithdate: item.brithdate,
       cuit: item.cuit,
-      domicilio: item.domicilio,
+      address: item.address,
       phone: item.phone,
       email: item.email,
     });
@@ -152,7 +118,7 @@ function App() {
       lastname: "",
       brithdate: "",
       cuit: "",
-      domicilio: "",
+      address: "",
       phone: "",
       email: "",
     });
@@ -161,29 +127,7 @@ function App() {
 
   return (
     <Container>
-      <Dialog
-        open={open}
-        TransitionComponent={Transition}
-        keepMounted
-        onClose={handleClose}
-        aria-describedby="alert-dialog-slide-description"
-      >
-        <DialogTitle>{selectedItem ? `${selectedItem.name.toUpperCase()} ${selectedItem.lastname.toUpperCase()}` : ''}</DialogTitle>
-        <DialogContent>
-          {selectedItem && (
-            <>
-              <Typography variant="body1">EMAIL: {selectedItem.email}</Typography>
-              <Typography variant="body1">TELEFONO: {selectedItem.phone}</Typography>
-              <Typography variant="body1">CUMPLEAÑOS: {selectedItem.brithdate}</Typography>
-              <Typography variant="body1">CUIT: {selectedItem.cuit}</Typography>
-              <Typography variant="body1">DOMICILIO: {selectedItem.domicilio}</Typography>
-            </>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cerrar</Button>
-        </DialogActions>
-      </Dialog>
+      <DialogComponent open={open} handleClose={handleClose} selectedItem={selectedItem} />
 
       <Grid container>
         <Grid item xs={12} sm={6}>
@@ -224,8 +168,8 @@ function App() {
               />
               <TextField
                 label="Domicilio"
-                name="domicilio"
-                value={newClient.domicilio}
+                name="address"
+                value={newClient.address}
                 onChange={handleChange}
                 fullWidth
                 margin="normal"
@@ -253,33 +197,23 @@ function App() {
           </Box>
         </Grid>
         <Grid item xs={12} sm={6}>
-          {data.length > 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', p: 6, alignItems: 'center' }}>
-              <Typography variant="h5">Lista de Clientes:</Typography>
-              <ul>
-                {data.map((item, index) => (
-                  <li key={index}>
-                    <Card sx={{ minWidth: 275 }}>
-                      <CardContent>
-                        <Typography variant="h5" component="div">
-                          {item.name.toUpperCase()} {item.lastname.toUpperCase()}
-                        </Typography>
-                        <Typography sx={{ mb: 1.5 }} color="text.secondary">
-                          telefono {item.phone}
-                        </Typography>
-                      </CardContent>
-                      <CardActions>
-                        <Button size="small" onClick={() => handleClickOpen(item)} startIcon={<InfoIcon />}>VER</Button>
-                        <Button size="small" onClick={() => handleDelete(item)} startIcon={<DeleteIcon />}>DELETE</Button>
-                        <Button size="small" onClick={() => handleEdit(item)} startIcon={<EditIcon />}>EDITAR</Button>
-                      </CardActions>
-                    </Card>
-                  </li>
-                ))}
-              </ul>
-            </Box>
-          )}
-        </Grid>
+        {data.length > 0 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', p: 6, alignItems: 'center' }}>
+            <Typography variant="h5">Lista de Clientes:</Typography>
+            <ul>
+              {data.map((item, index) => (
+                <CardComponent
+                  key={index}
+                  item={item}
+                  handleClickOpen={handleClickOpen}
+                  handleDelete={handleDelete}
+                  handleEdit={handleEdit}
+                />
+              ))}
+            </ul>
+          </Box>
+        )}
+      </Grid>
       </Grid>
     </Container>
   );
